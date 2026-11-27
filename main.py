@@ -34,6 +34,13 @@ OUTPUT_PATH = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")) / "entry.png
 # The eight magic bytes every PNG file starts with.
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
+# How this program works, in short: it draws nothing from scratch.
+# It takes the finished picture already stored next to this file,
+# makes sure that file really is a PNG and still a reasonable size,
+# then copies it into the output folder and double-checks that the
+# copy matches the original byte for byte before reporting success.
+MAX_OUTPUT_BYTES = 1024 * 1024  # one mebibyte, the largest output allowed
+
 
 def digest(path: Path) -> str:
     """Return the hex SHA-256 digest of the file at *path*."""
@@ -60,6 +67,11 @@ def main() -> int:
             print(f"error: {source} is not a PNG file", file=sys.stderr)
             return 1
 
+    source_size = source.stat().st_size
+    if source_size > MAX_OUTPUT_BYTES:
+        print(f"error: source image is too big: {source_size} bytes", file=sys.stderr)
+        return 1
+
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, OUTPUT_PATH)
 
@@ -68,6 +80,7 @@ def main() -> int:
         return 1
 
     size = OUTPUT_PATH.stat().st_size
+    print(f"verified: output is {size} bytes, inside the 1 MiB limit")
     print(f"wrote {OUTPUT_PATH} ({size} bytes, sha256 {digest(OUTPUT_PATH)})")
     return 0
 
